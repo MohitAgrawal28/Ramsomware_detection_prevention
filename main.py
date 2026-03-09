@@ -1,23 +1,59 @@
+"""
+main.py — RanSAP Ransomware Detection System
+Entry point — starts file system monitoring
+"""
+
+import os
+import sys
 import time
+import signal
 from watchdog.observers import Observer
 from monitor import FileMonitor
 
-path = "test_folder"
+# ── CONFIG ───────────────────────────────────────────────────
+WATCH_PATH = "test_folder"   # Folder to monitor
+# ─────────────────────────────────────────────────────────────
 
-event_handler = FileMonitor()
-observer = Observer()
-observer.schedule(event_handler, path, recursive=True)
 
-print("Monitoring started...")
+def main():
+    print("=" * 50)
+    print("  RANSOMWARE DETECTION & PREVENTION SYSTEM")
+    print("  Powered by LSTM Deep Learning (RanSAP 2022)")
+    print("=" * 50)
 
-observer.start()
+    # Make sure watch folder exists
+    os.makedirs(WATCH_PATH, exist_ok=True)
+    os.makedirs("backup_folder", exist_ok=True)
 
-try:
-    while True:
-        time.sleep(1)
+    print(f"\n  Watching    : {os.path.abspath(WATCH_PATH)}")
+    print(f"  Model       : model/ransomware_lstm_model.keras")
+    print(f"  Threshold   : 70% confidence")
+    print(f"  Window size : 100 events")
+    print(f"\n  Press Ctrl+C to stop\n")
 
-except KeyboardInterrupt:
-    observer.stop()
-    print("Monitoring stopped")
+    event_handler = FileMonitor()
+    observer      = Observer()
+    observer.schedule(event_handler, WATCH_PATH, recursive=True)
 
-observer.join()
+    def shutdown(sig, frame):
+        print("\n\nShutting down...")
+        observer.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown)
+
+    observer.start()
+    print("  Monitoring started...\n")
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+        print("\nMonitoring stopped.")
+
+    observer.join()
+
+
+if __name__ == "__main__":
+    main()
