@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const API_BASE = "http://127.0.0.1:5000";
+const API_BASE = "https://your-app.up.railway.app";
 const POLL_MS  = 3000;
 
 const Icons = {
