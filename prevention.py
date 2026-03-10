@@ -13,6 +13,9 @@ PROTECTED = {
     "system", "svchost.exe", "lsass.exe", "csrss.exe",
     "winlogon.exe", "services.exe", "explorer.exe",
     "python.exe", "python3.exe", "code.exe",
+    "node.exe", "esbuild.exe", "npm.exe",
+    "language_server_windows_x64.exe",
+    "vite.exe", "cmd.exe", "powershell.exe",
 }
 
 # Keywords that suggest ransomware process

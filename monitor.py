@@ -5,6 +5,7 @@ monitor.py — File system monitor using ML detection
 import os
 import time
 from watchdog.events import FileSystemEventHandler
+import requests
 from detector import detect_ransomware, reset_window
 from backup import backup_files, restore_files
 from prevention import stop_encryption
@@ -18,7 +19,7 @@ class FileMonitor(FileSystemEventHandler):
 
     def __init__(self):
         super().__init__()
-        self._last_alert = 0
+        self._last_alert = 0.0
         self._alert_cooldown = 10  # seconds between alerts
 
     def process(self, event_path: str, event_type: str):
@@ -49,9 +50,22 @@ class FileMonitor(FileSystemEventHandler):
 
             # Prevention actions
             print("\n  Taking action...")
-            stop_encryption()     # Kill suspicious processes
+            killed_procs = stop_encryption()     # Kill suspicious processes
             restore_files()       # Restore from backup
             reset_window()        # Reset detection window
+
+            # Send alert to backend dashboard
+            try:
+                requests.post("http://127.0.0.1:5000/alert", json={
+                    "type": "process_killed" if killed_procs else "ransomware_detected",
+                    "process_name": killed_procs[0] if killed_procs else "Suspicious Process",
+                    "probability": prob,
+                    "label": "ransomware",
+                    "action_taken": "terminated" if killed_procs else "blocked",
+                    "file": os.path.basename(event_path),
+                }, timeout=2)
+            except Exception as e:
+                print(f"  [WARN] Failed to send alert to dashboard: {e}")
 
             print("\n  System protected. Monitoring continues...")
 
