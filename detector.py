@@ -6,9 +6,13 @@ Uses the trained LSTM model (input shape: 100 timesteps x 6 features)
 import numpy as np
 import tensorflow as tf
 from collections import deque
+import joblib
+import os
 
 # ── CONFIG ────────────────────────────────────────────────────
-MODEL_PATH   = "model/ransomware_lstm_model.keras"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH   = os.path.join(BASE_DIR, "model", "ransomware_lstm_model.keras")
+SCALER_PATH  = os.path.join(BASE_DIR, "model", "scaler.pkl")
 WINDOW_SIZE  = 100          # Must match model input (100 timesteps)
 N_FEATURES   = 6            # lba, size, flags, duration, queue_depth, throughput
 THRESHOLD    = 0.70         # Probability above this = ransomware
@@ -20,6 +24,13 @@ FEATURE_NAMES = ["lba", "size", "flags", "duration", "queue_depth", "throughput"
 print("Loading LSTM model...")
 model = tf.keras.models.load_model(MODEL_PATH)
 print(f"Model loaded. Input: {model.input_shape}")
+
+try:
+    scaler = joblib.load(SCALER_PATH)
+    print("Scaler loaded in live detector.")
+except Exception:
+    scaler = None
+    print("No scaler found. Falling back to hardcoded ranges.")
 
 # Rolling window of recent file events (stores feature vectors)
 event_window = deque(maxlen=WINDOW_SIZE)
@@ -74,11 +85,14 @@ def extract_features_from_event(event_path: str,
         "throughput":  float(size * max(len(event_window), 1)),
     }
 
-    # Normalize each feature
-    normalized = np.array(
-        [normalize_feature(name, raw[name]) for name in FEATURE_NAMES],
-        dtype=np.float32
-    )
+    # Normalize each feature or keep raw if using scaler
+    if scaler is not None:
+        normalized = np.array([raw[name] for name in FEATURE_NAMES], dtype=np.float32)
+    else:
+        normalized = np.array(
+            [normalize_feature(name, raw[name]) for name in FEATURE_NAMES],
+            dtype=np.float32
+        )
     return normalized
 
 
@@ -118,10 +132,12 @@ def detect_ransomware(event_path: str, event_type: str) -> dict:
 
     # Build input tensor: (1, 100, 6)
     X = np.array(list(event_window), dtype=np.float32)
+    if scaler is not None:
+        X = scaler.transform(X)
     X = X.reshape(1, WINDOW_SIZE, N_FEATURES)
 
-    # Run model prediction
-    prob = float(model.predict(X, verbose=0)[0][0])
+    # Run model prediction (fast tensor call instead of .predict())
+    prob = float(model(X, training=False)[0][0])
     label = "ransomware" if prob >= THRESHOLD else "benign"
 
     return {

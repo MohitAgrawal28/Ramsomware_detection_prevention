@@ -11,7 +11,9 @@ from watchdog.observers import Observer
 from monitor import FileMonitor
 
 # ── CONFIG ───────────────────────────────────────────────────
-WATCH_PATH = "test_folder"   # Folder to monitor
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+WATCH_PATH = os.path.join(BASE_DIR, "test_folder")   # Folder to monitor
+BACKUP_PATH = os.path.join(BASE_DIR, "backup_folder")
 # ─────────────────────────────────────────────────────────────
 
 
@@ -23,7 +25,7 @@ def main():
 
     # Make sure watch folder exists
     os.makedirs(WATCH_PATH, exist_ok=True)
-    os.makedirs("backup_folder", exist_ok=True)
+    os.makedirs(BACKUP_PATH, exist_ok=True)
 
     print(f"\n  Watching    : {os.path.abspath(WATCH_PATH)}")
     print(f"  Model       : model/ransomware_lstm_model.keras")
